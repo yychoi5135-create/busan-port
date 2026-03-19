@@ -1,0 +1,27 @@
+const TERMINALS = [
+  { id:'pnc',  name:'PNC',  full:'부산신항만(주)',         pier:'1부두',    color:'#3b82f6',
+    url:'https://svc.pncport.com/info/CMS/Ship/Info.pnc?mCode=MN014',
+    direct:'https://svc.pncport.com/info/CMS/Ship/Info.pnc?mCode=MN014' },
+  { id:'pnit', name:'PNIT', full:'부산신항국제터미널',      pier:'2부두',    color:'#06b6d4',
+    url:'https://www.pnitl.com/infoservice/vessel/vslScheduleList.jsp',
+    direct:'https://www.pnitl.com/infoservice/vessel/vslScheduleList.jsp', parser:'table_st1' },
+  { id:'hjnc', name:'HJNC', full:'한진부산컨테이너터미널',  pier:'3부두',    color:'#f59e0b',
+    url:'https://www.hjnc.co.kr/esvc/vessel/berthScheduleT',
+    direct:'https://www.hjnc.co.kr/esvc/vessel/berthScheduleT' },
+  { id:'hpnt', name:'HPNT', full:'현대부산신항만(HMM)',     pier:'4부두',    color:'#10b981',
+    url:'https://www.hpnt.co.kr/infoservice/vessel/vslScheduleList.jsp',
+    direct:'https://www.hpnt.co.kr/infoservice/vessel/vslScheduleList.jsp', parser:'table_st1' },
+  { id:'bnct', name:'BNCT', full:'(주)비엔씨티',           pier:'5부두',    color:'#8b5cf6',
+    url:'http://info.bnctkorea.com/esvc/vessel/berthScheduleT',
+    direct:'http://info.bnctkorea.com/esvc/vessel/berthScheduleT' },
+  { id:'bct',  name:'BCT',  full:'부산컨테이너터미널',      pier:'6부두',    color:'#ef4444',
+    url:'https://info.bct2-4.com/',
+    direct:'https://info.bct2-4.com/' },
+  { id:'dgt',  name:'DGT',  full:'동원글로벌터미널부산',    pier:'7부두',    color:'#f97316',
+    url:'https://info.dgtbusan.com/DGT/esvc/vessel/berthScheduleT',
+    direct:'https://info.dgtbusan.com/DGT/esvc/vessel/berthScheduleT' },
+  { id:'bnmt', name:'BNMT', full:'부산신항다목적터미널',     pier:'다목적부두', color:'#64748b',
+    url:null, direct:null },
+];
+
+module.exports = TERMINALS;
