@@ -34,12 +34,12 @@ async function fetchPortMIS() {
   if (cached) { console.log('[Cache HIT]'); return cached; }
 
   const { startDt, endDt } = getDateRange();
-  const url = 'http://apis.data.go.kr/1192000/VsslEtrynd4/Info4';
+  const url = 'http://apis.data.go.kr/1192000/VsslEtrynd5/Info5';
   const params = {
-    serviceKey: API_KEY,
-    portNm: '부산',
-    inqireDtFrom: startDt,
-    inqireDtTo: endDt,
+  serviceKey: API_KEY,
+  prtAgCd: 'INC00011',
+  sde: startDt,
+  ede: endDt,
     numOfRows: 100,
     pageNo: 1,
     type: 'json',
