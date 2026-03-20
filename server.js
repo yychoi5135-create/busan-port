@@ -37,13 +37,12 @@ async function fetchPortMIS() {
   const url = 'http://apis.data.go.kr/1192000/VsslEtrynd5/Info5';
   const params = {
   serviceKey: API_KEY,
-  prtAgCd: 'INC00011',
   sde: startDt,
   ede: endDt,
-    numOfRows: 100,
-    pageNo: 1,
-    type: 'json',
-  };
+  numOfRows: 100,
+  pageNo: 1,
+  type: 'json',
+};
 
   console.log(`[Fetch] PORT-MIS: ${startDt}~${endDt}`);
   const start = Date.now();
