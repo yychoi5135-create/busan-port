@@ -1,11 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const axios = require('axios');
+const { scrapeTerminal } = require('./scrapers/scraper');
+const TERMINALS = require('./scrapers/terminals');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const API_KEY = process.env.PORTMIS_API_KEY || '';
 
 app.use(cors());
 app.use(express.json());
@@ -15,98 +15,68 @@ const cache = new Map();
 const CACHE_TTL = 60 * 1000;
 function getCached(k) {
   const e = cache.get(k);
-  if (!e) return null;
-  if (Date.now() - e.ts > CACHE_TTL) { cache.delete(k); return null; }
-  return e.data;
-}
-function setCache(k, d) { cache.set(k, { data: d, ts: Date.now() }); }
+    if (!e) return null;
+      if (Date.now() - e.ts > CACHE_TTL) { cache.delete(k); return null; }
+        return e.data;
+        }
+        function setCache(k, d) { cache.set(k, { data: d, ts: Date.now() }); }
 
-function getDateRange() {
-  const now = new Date();
-  const future = new Date(now);
-  future.setDate(future.getDate() + 7);
-  const fmt = d => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
-  return { startDt: fmt(now), endDt: fmt(future) };
-}
+        async function fetchTerminal(terminal) {
+          const cached = getCached(terminal.id);
+            if (cached) return { ...cached, fromCache: true };
 
-async function fetchPortMIS() {
-  const cached = getCached('portmis');
-  if (cached) { console.log('[Cache HIT]'); return cached; }
+              const start = Date.now();
+                if (!terminal.url) {
+                    return { id: terminal.id, status: 'nourl', vessels: [], elapsed: 0 };
+                      }
 
-  const { startDt, endDt } = getDateRange();
-  const url = 'http://apis.data.go.kr/1192000/VsslEtrynd5/Info5';
-  const params = {
-  serviceKey: API_KEY,
-  sde: startDt,
-  ede: endDt,
-  numOfRows: 100,
-  pageNo: 1,
-  type: 'json',
-};
+                        try {
+                            const vessels = await scrapeTerminal(terminal);
+                                const elapsed = Date.now() - start;
+                                    const result = {
+                                          id: terminal.id,
+                                                status: vessels.length > 0 ? 'live' : 'empty',
+                                                      vessels, elapsed, fromCache: false,
+                                                          };
+                                                              setCache(terminal.id, result);
+                                                                  console.log(`[Done] ${terminal.name}: ${vessels.length}척 (${elapsed}ms)`);
+                                                                      return result;
+                                                                        } catch (err) {
+                                                                            const elapsed = Date.now() - start;
+                                                                                console.error(`[Error] ${terminal.name}: ${err.message}`);
+                                                                                    return { id: terminal.id, status: 'fail', error: err.message, vessels: [], elapsed, fromCache: false };
+                                                                                      }
+                                                                                      }
 
-  console.log(`[Fetch] PORT-MIS: ${startDt}~${endDt}`);
-  const start = Date.now();
-  const res = await axios.get(url, { params, timeout: 15000 });
-  const elapsed = Date.now() - start;
+                                                                                      app.get('/api/all', async (req, res) => {
+                                                                                        const results = await Promise.allSettled(TERMINALS.map(t => fetchTerminal(t)));
+                                                                                          const data = results.map((r, i) =>
+                                                                                              r.status === 'fulfilled' ? r.value : { id: TERMINALS[i].id, status: 'fail', vessels: [] }
+                                                                                                );
+                                                                                                  const totalVessels = data.reduce((s, d) => s + (d.vessels?.length || 0), 0);
+                                                                                                    res.json({ ok: true, data, totalVessels, timestamp: new Date().toISOString() });
+                                                                                                    });
 
-  const body = res.data;
-  let items = [];
-  try {
-    if (body?.response?.body?.items?.item) {
-      const raw = body.response.body.items.item;
-      items = Array.isArray(raw) ? raw : [raw];
-    } else if (body?.items?.item) {
-      const raw = body.items.item;
-      items = Array.isArray(raw) ? raw : [raw];
-    }
-  } catch(e) { console.error('[Parse Error]', e.message); }
+                                                                                                    app.get('/api/terminal/:id', async (req, res) => {
+                                                                                                      const terminal = TERMINALS.find(t => t.id === req.params.id);
+                                                                                                        if (!terminal) return res.status(404).json({ ok: false, error: '없는 터미널' });
+                                                                                                          const result = await fetchTerminal(terminal);
+                                                                                                            res.json({ ok: true, ...result });
+                                                                                                            });
 
-  const vessels = items.map(item => ({
-    vslNm:       item.vslNm    || '-',
-    callSign:    item.callSign || '-',
-    gtNs:        item.gtNs     || '-',
-    berth:       item.berthNm  || item.berthNo || '-',
-    eta:         item.etaHms   || item.entrPlanDt || '-',
-    etd:         item.etdHms   || item.leavPlanDt || '-',
-    ata:         item.ataHms   || '-',
-    atd:         item.atdHms   || '-',
-    status:      item.vslSttus || '-',
-    cargo:       item.cargoNm  || '-',
-    operator:    item.opertrNm || '-',
-    nationality: item.ntnNm    || '-',
-  }));
+                                                                                                            app.delete('/api/cache', (req, res) => {
+                                                                                                              cache.clear();
+                                                                                                                res.json({ ok: true });
+                                                                                                                });
 
-  const result = { vessels, total: vessels.length, timestamp: new Date().toISOString(), elapsed };
-  setCache('portmis', result);
-  console.log(`[Done] ${vessels.length}척 (${elapsed}ms)`);
-  return result;
-}
+                                                                                                                app.get('/api/health', (req, res) => {
+                                                                                                                  res.json({ ok: true, uptime: process.uptime() });
+                                                                                                                  });
 
-app.get('/api/vessels', async (req, res) => {
-  try {
-    if (!API_KEY) return res.status(500).json({ ok: false, error: 'API 키 미설정' });
-    const data = await fetchPortMIS();
-    res.json({ ok: true, ...data });
-  } catch (err) {
-    console.error('[Error]', err.message);
-    res.status(500).json({ ok: false, error: err.message });
-  }
-});
+                                                                                                                  app.get('*', (req, res) => {
+                                                                                                                    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+                                                                                                                    });
 
-app.get('/api/health', (req, res) => {
-  res.json({ ok: true, uptime: process.uptime(), hasApiKey: !!API_KEY });
-});
-
-app.delete('/api/cache', (req, res) => {
-  cache.clear();
-  res.json({ ok: true });
-});
-
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-app.listen(PORT, () => {
-  console.log(`\n⚓ 부산 신항 선석표: http://localhost:${PORT}`);
-  console.log(`API 키: ${API_KEY ? '✅ 설정됨' : '❌ 미설정'}\n`);
-});
+                                                                                                                    app.listen(PORT, () => {
+                                                                                                                      console.log(`\n⚓ 부산 신항 선석표: http://localhost:${PORT}\n`);
+                                                                                                                      });
